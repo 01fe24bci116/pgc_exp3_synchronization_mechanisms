@@ -1,0 +1,37 @@
+# Compiled executables
+race
+race.exe
+critical
+critical.exe
+atomic
+atomic.exe
+barrier
+barrier.exe
+semaphore
+semaphore.exe
+compare_sync
+compare_sync.exe
+*.out
+*.exe
+
+# Object files and libraries
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+
+# Debug files and directories
+*.dSYM/
+*.pdb
+*.ilk
+
+# Editor and OS metadata
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db

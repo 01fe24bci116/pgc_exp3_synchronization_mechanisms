@@ -1,0 +1,175 @@
+================================================================================
+SYNCHRONIZATION MECHANISMS BENCHMARK RESULTS
+Experiment: Synchronization Mechanisms in Parallel Programs (PGC Experiment 5)
+================================================================================
+
+--------------------------------------------------------------------------------
+1. PRIMARY DATASET: HISTORICAL BENCHMARK RUN (UBUNTU 22.04 LTS VM)
+--------------------------------------------------------------------------------
+Source: Genuine terminal execution screenshots captured on VMware Workstation Pro
+OS: Ubuntu 22.04 LTS
+Compiler: GCC (libgomp, OpenMP runtime, pthread)
+Workload: 10,000,000 iterations per configuration
+
+Command:
+  $ gcc compare_sync.c -fopenmp -o compare_sync
+  $ ./compare_sync
+
+Observed Terminal Output:
+Synchronization Comparison
+Threads | Method   | Counter   | Time (seconds)
+-----------------------------------------------
+      1 | None     | 10000000  | 0.0090
+      1 | Critical | 10000000  | 0.1127
+      1 | Atomic   | 10000000  | 0.0681
+-----------------------------------------------
+      2 | None     |  6088479  | 0.0174
+      2 | Critical | 10000000  | 0.2612
+      2 | Atomic   | 10000000  | 0.1714
+-----------------------------------------------
+      4 | None     |  6205502  | 0.0115
+      4 | Critical | 10000000  | 0.2647
+      4 | Atomic   | 10000000  | 0.1791
+-----------------------------------------------
+      8 | None     |  3407513  | 0.0136
+      8 | Critical | 10000000  | 0.2852
+      8 | Atomic   | 10000000  | 0.1760
+-----------------------------------------------
+Expected correct counter: 10000000
+
+Analysis:
+  - 'None' produces non-deterministic loss: 6,088,479 at 2 threads and degrades to
+    3,407,513 at 8 threads (66% loss of updates).
+  - 'Critical' achieves 100% correctness (10,000,000) but execution time rises
+    from 0.1127s (1 thread) to 0.2852s (8 threads) due to heavy serialization.
+  - 'Atomic' achieves 100% correctness (10,000,000) with significantly lower
+    latency than Critical (0.0681s at 1 thread, 0.1760s at 8 threads).
+
+
+--------------------------------------------------------------------------------
+2. HISTORICAL INDIVIDUAL PROGRAM RUNS (UBUNTU 22.04 LTS VM)
+--------------------------------------------------------------------------------
+
+A. Program 1: Race Condition (race.c)
+   Command:
+     $ gcc race.c -fopenmp -o race
+     $ ./race
+   Output:
+     Final counter = 7251257
+   Status: INCORRECT (Expected: 10000000, Lost: 2748743 updates due to race condition)
+
+B. Program 2: Critical Section (critical.c)
+   Command:
+     $ gcc critical.c -fopenmp -o critical
+     $ ./critical
+   Output:
+     Final counter = 10000000
+   Status: CORRECT (100% updates preserved via #pragma omp critical)
+
+C. Program 3: Atomic Operation (atomic.c)
+   Command:
+     $ gcc atomic.c -fopenmp -o atomic
+     $ ./atomic
+   Output:
+     Final counter = 10000000
+   Status: CORRECT (100% updates preserved via #pragma omp atomic)
+
+D. Program 4: Barrier Synchronization (barrier.c)
+   Command:
+     $ gcc barrier.c -fopenmp -o barrier
+     $ ./barrier
+   Output:
+     Thread 1 before barrier
+     Thread 0 before barrier
+     Thread 0 after barrier
+     Thread 1 after barrier
+   Status: SUCCESS (Both threads arrived at barrier before either entered Phase 2)
+
+E. Program 5: POSIX Semaphore (semaphore.c)
+   Command:
+     $ gcc semaphore.c -pthread -o semaphore
+     $ ./semaphore
+   Output:
+     Final counter = 200000
+   Status: CORRECT (2 threads * 100000 increments = 200000 preserved via binary sem_t)
+
+
+--------------------------------------------------------------------------------
+3. REFERENCE SAMPLE RUN (FROM LAB MANUAL PDF SECTION 9)
+--------------------------------------------------------------------------------
+Note: This is illustrative reference data provided in the lab assignment manual.
+Comparing synchronization mechanisms for 10000000 shared increments
+
+Mechanism  | Threads | Final Count  | Correctness | Time (s)
+---------------------------------------------------------------
+None       |       1 |     10000000 | Correct     | 0.0486
+Critical   |       1 |     10000000 | Correct     | 0.1571
+Atomic     |       1 |     10000000 | Correct     | 0.0567
+Lock       |       1 |     10000000 | Correct     | 0.1586
+---------------------------------------------------------------
+None       |       2 |     10000000 | Correct     | 0.0249
+Critical   |       2 |     10000000 | Correct     | 0.1584
+Atomic     |       2 |     10000000 | Correct     | 0.0574
+Lock       |       2 |     10000000 | Correct     | 0.1590
+---------------------------------------------------------------
+None       |       4 |      7545062 | INCORRECT   | 0.0250
+Critical   |       4 |     10000000 | Correct     | 0.1583
+Atomic     |       4 |     10000000 | Correct     | 0.0585
+Lock       |       4 |     10000000 | Correct     | 0.1615
+---------------------------------------------------------------
+None       |       8 |      4394535 | INCORRECT   | 0.0250
+Critical   |       8 |     10000000 | Correct     | 0.1579
+Atomic     |       8 |     10000000 | Correct     | 0.0565
+Lock       |       8 |     10000000 | Correct     | 0.1603
+---------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+4. LOCAL VERIFICATION RUN (WINDOWS 11 / MSYS2 GCC 15.2.0, 16 HARDWARE CORES)
+--------------------------------------------------------------------------------
+Environment:
+  OS: Microsoft Windows 11
+  Toolchain: GCC 15.2.0 (Rev14, MSYS2 mingw64)
+  CPU Cores: 16 logical threads
+
+Command:
+  $ gcc compare_sync.c -Wall -Wextra -fopenmp -o compare_sync
+  $ ./compare_sync
+
+Measured Output:
+===================================================================
+   Synchronization Mechanisms Benchmark (10000000 Shared Increments)   
+===================================================================
+Mechanism  | Threads | Final Count  | Correctness | Time (s)  
+-------------------------------------------------------------------
+None       |       1 |     10000000 |    Correct  |     0.0040
+Critical   |       1 |     10000000 |    Correct  |     0.1080
+Atomic     |       1 |     10000000 |    Correct  |     0.0670
+Lock       |       1 |     10000000 |    Correct  |     0.3760
+-------------------------------------------------------------------
+None       |       2 |      6344361 |  INCORRECT  |     0.0090
+Critical   |       2 |     10000000 |    Correct  |     0.2300
+Atomic     |       2 |     10000000 |    Correct  |     0.1490
+Lock       |       2 |     10000000 |    Correct  |    31.2010
+-------------------------------------------------------------------
+None       |       4 |      3058866 |  INCORRECT  |     0.0110
+Critical   |       4 |     10000000 |    Correct  |     0.1980
+Atomic     |       4 |     10000000 |    Correct  |     0.1490
+Lock       |       4 |     10000000 |    Correct  |    31.7760
+-------------------------------------------------------------------
+None       |       8 |      2383012 |  INCORRECT  |     0.0120
+Critical   |       8 |     10000000 |    Correct  |     0.3570
+Atomic     |       8 |     10000000 |    Correct  |     0.1580
+Lock       |       8 |     10000000 |    Correct  |    30.9500
+-------------------------------------------------------------------
+
+Environmental Variations & Explanations:
+  1. On Windows with MinGW libgomp, `omp_lock_t` relies on Windows CriticalSection/
+     Event synchronization primitives, which incur significant user-to-kernel
+     transition overhead under heavy lock contention (10,000,000 acquisitions).
+  2. In contrast, on Linux (Ubuntu 22.04 with glibc / native futexes), `omp_lock_t`
+     overhead is much closer to `#pragma omp critical`.
+  3. 'Atomic' remains exceptionally efficient across all platforms because it
+     bypasses OS-level mutex primitives and maps directly to atomic CPU instructions
+     (LOCK CMPXCHG / LOCK XADD on x86-64).
+================================================================================
